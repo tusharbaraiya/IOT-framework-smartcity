@@ -10,11 +10,17 @@
 #include <my_global.h>
 #include <mysql.h>
 
-int create_database(char* );
+int create_database(char* n);
 
 int main(){
 int port = 9777;
 char db_name[20];
+MYSQL *con = mysql_init(NULL);
+if (con == NULL) {
+      fprintf(stderr, "%s\n", mysql_error(con));
+      exit(1);
+} 
+
 printf("Configuring Platform...\n");
 printf("Creating Database...\n");
 printf("Enter Database name: ");
@@ -50,22 +56,60 @@ printf("bind failed\n");
 return 0;
 }
 printf(": Successful\n");
+
+if (mysql_real_connect(con, "localhost", "root", "", 
+          db_name, 0, NULL, 0) == NULL) 
+{
+	fprintf(stderr, "%s\n", mysql_error(con));
+      	printf("Error in real connect\n");
+	return -1;
+}
+
 printf("Listening on PORT : %d\n", port);
+
+char create_qry[200];
+char* c_qry_1= "CREATE TABLE IF NOT EXISTS device_";
+char* c_qry_2="(ID int NOT NULL AUTO_INCREMENT PRIMARY KEY,Sensor_1 INT, Sensor_2 INT, Sensor_3 INT)";
+char d_id[4];
+char s1[3];
+char s2[3];
+char s3[3];
+int s1_val;
+int s2_val;
+int s3_val;
 
 
 while(1){
-	uint8_t rcvfrm[200];
-	int slen = sizeof(udp_rcv);
-	recvfrom(udp_rcvfd, rcvfrm, 199, 0, (struct sockaddr *)&udp_rcv, &slen);
-	printf("recieved %s\n",rcvfrm);
+	uint8_t rcvfrm[20];
+	int slen = sizeof(udp_rcv);	
+	recvfrom(udp_rcvfd, rcvfrm, 19, 0, (struct sockaddr *)&udp_rcv, &slen);		
+	strncpy(d_id,rcvfrm,3);
+	d_id[3]='\0';
+	strncpy(s1,rcvfrm+3,2);
+	s1[3]='\0';
+	strncpy(s2,rcvfrm+5,2);
+	s2[3]='\0';
+	strncpy(s3,rcvfrm+7,2);
+	s3[3]='\0';
+	s1_val= atoi(s1);
+	s2_val= atoi(s2);
+	s3_val= atoi(s3);	
+	strcpy(create_qry,c_qry_1);
+	strcat(create_qry,d_id);
+	strcat(create_qry,c_qry_2);
+	if (mysql_query(con, create_qry)) {
+		fprintf(stderr, "%s\n", mysql_error(con));      
+      		printf("Error creating table\n");
+  		}
+
 	}
 
 return 0;
 }
 
 int create_database(char* name){
-MYSQL *con = mysql_init(NULL);
-  if (con == NULL) 
+MYSQL *con = mysql_init(NULL);  
+if (con == NULL) 
   {
       fprintf(stderr, "%s\n", mysql_error(con));
       return -1;
@@ -91,3 +135,4 @@ strcat(full_qry,name);
   }
 return 1;
 }
+
